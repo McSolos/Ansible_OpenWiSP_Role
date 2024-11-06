@@ -1,0 +1,188 @@
+---
+- name: Update apt packages
+  apt:
+    update_cache: yes
+
+
+- name: Install system dependencies
+  apt:
+    name:
+      - build-essential
+      - libjpeg-dev
+      - zlib1g-dev
+      - libfreetype6-dev
+      - liblcms2-dev
+      - libopenjp2-7
+      - libwebp-dev
+      - libtiff-dev 
+    state: present
+
+
+- name: Install required packages
+  apt:
+    name: 
+      - python3-pip
+      - python3-dev
+      - libpq-dev
+      - libssl-dev
+      - nginx
+      - git
+      - curl
+      - python3-venv  # Add this line to install venv
+    state: present
+
+- name: Create a virtual environment
+  command: python3 -m venv /opt/openwisp/venv
+  args:
+    creates: /opt/openwisp/venv
+
+- name: Upgrade pip, setuptools, and wheel in the virtual environment
+  command: /opt/openwisp/venv/bin/pip install --upgrade pip setuptools wheel
+
+
+#- name: Install pip packages in the virtual environment
+ # command: /opt/openwisp/venv/bin/pip install {{ item }}
+  #loop:
+   # - django
+    #- openwisp-utils
+   # - openwisp-controller
+   # - openwisp-network-topology
+   # - openwisp-radius
+   # - openwisp-firmware-upgrader
+   # - openwisp-monitoring
+
+
+- name: Install pip packages in the virtual environment
+  command: /opt/openwisp/venv/bin/pip install {{ item }}
+  loop:
+    - "django==3.2.18"
+    - "djangorestframework==3.12.4"
+    - "markdown==3.3.7"
+    - "importlib-metadata==4.13.0"
+    - "openwisp-utils"
+    - "openwisp-controller"
+    - "openwisp-network-topology"
+    - "openwisp-radius"
+    - "openwisp-firmware-upgrader"
+    - "openwisp-monitoring"
+
+
+- name: Upgrade pip, setuptools, and wheel in the virtual environment
+  command: /opt/openwisp/venv/bin/pip install --upgrade pip setuptools wheel
+
+
+- name: Upgrade importlib-metadata
+  command: /opt/openwisp/venv/bin/pip install --upgrade importlib-metadata
+
+
+- name: Create OpenWISP application directories
+  file:
+    path: "/opt/openwisp/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - static
+    - media
+    - logs
+
+- name: Create OpenWISP configuration file
+  template:
+    src: openwisp_config.j2
+    dest: /opt/openwisp/config.py
+    owner: www-data
+    group: www-data
+    mode: '0644'
+
+- name: Ensure Django project directory exists
+  file:
+    path: "{{ project_dir }}"
+    state: directory
+
+- name: Create Django project if it doesn't exist
+  command: "{{ venv_path }}/bin/django-admin startproject openwisp_project {{ project_dir }}"
+  args:
+    creates: "{{ project_dir }}/manage.py"
+  when: manage_py_path is not defined
+
+- name: Set up Django settings for OpenWISP
+  blockinfile:
+    path: "{{ project_dir }}/openwisp_project/settings.py"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OpenWISP settings"
+    block: |
+      INSTALLED_APPS = [
+          'django.contrib.admin',
+          'django.contrib.auth',
+          'django.contrib.contenttypes',
+          'django.contrib.sessions',
+          'django.contrib.messages',
+          'django.contrib.staticfiles',
+          # OpenWISP apps
+          'openwisp_utils',
+          'openwisp_controller',
+          'openwisp_network_topology',
+          'openwisp_radius',
+          'openwisp_firmware_upgrader',
+          'openwisp_monitoring',
+          # Add any additional apps here
+      ]
+
+
+# Define a default path for private storage
+- name: Ensure private storage directory exists
+  file:
+    path: "{{ project_dir }}/private_storage"
+    state: directory
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_id }}"
+    mode: '0755'
+
+# Add PRIVATE_STORAGE_ROOT to Django settings
+
+- name: Configure OpenWISP-specific settings in Django settings.py
+  lineinfile:
+    path: "/opt/openwisp/openwisp_project/openwisp_project/settings.py"
+    line: "PRIVATE_STORAGE_ROOT = '/path/to/private/storage'"
+    state: present
+
+
+- name: Install required libraries for WeasyPrint
+  apt:
+    name:
+      - libcairo2
+      - libcairo2-dev
+      - libpango-1.0-0
+      - libgdk-pixbuf2.0-0
+      - libpangocairo-1.0-0
+      - libffi-dev
+      - shared-mime-info
+    state: present
+
+
+
+- name: Migrate and collect static files
+  django_manage:
+    command: "{{ item }}"
+    app_path: /opt/openwisp/openwisp_project
+    virtualenv: /opt/openwisp/venv
+  loop:
+    - migrate
+    - collectstatic --noinput
+
+
+
+
+- name: Configure and enable systemd service for OpenWISP
+  template:
+    src: openwisp.service.j2
+    dest: /etc/systemd/system/openwisp.service
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart OpenWISP
+
+- name: Start and enable OpenWISP service
+  systemd:
+    name: openwisp
+    enabled: yes
+    state: started
+

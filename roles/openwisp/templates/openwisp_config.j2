@@ -1,0 +1,30 @@
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': '{{ openwisp_db_name }}',
+        'USER': '{{ openwisp_db_user }}',
+        'PASSWORD': '{{ openwisp_db_password }}',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+STATIC_ROOT = "/opt/openwisp/static/"
+MEDIA_ROOT = "/opt/openwisp/media/"
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '/opt/openwisp/logs/debug.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

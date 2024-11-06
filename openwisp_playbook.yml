@@ -1,0 +1,8 @@
+- hosts: openwisp_servers
+  become: yes
+  vars:
+    project_dir: /opt/openwisp/openwisp_project
+    venv_path: /opt/openwisp/venv
+  roles:
+    - openwisp
+

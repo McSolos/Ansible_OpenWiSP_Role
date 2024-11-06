@@ -1,0 +1,4 @@
+---
+openwisp_db_name: "openwisp"
+openwisp_db_user: "openwisp_user"
+openwisp_db_password: "securepassword"

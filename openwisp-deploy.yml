@@ -1,0 +1,10 @@
+---
+- hosts: servers
+  become: true
+
+  roles:
+    - role: openwisp.openwisp2
+      openwisp2_default_from_email: 'mcsolos@brixstone.com'
+      openwisp2_default_superuser_username: 'admin'
+      openwisp2_default_superuser_password: '77747477'
+      openwisp2_default_superuser_email: 'noreply@brixstone.com'
